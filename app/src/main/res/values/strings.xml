@@ -1,8 +1,5 @@
 <resources>
     <string name="app_name">SerialBasics</string>
-    <string name="on">ON</string>
-    <string name="off">OFF</string>
-    <string name="connect">Connect</string>
-    <string name="disconnect">Disconnect</string>
-
+    <string name="cmd1">CMD1</string>
+    <string name="cmd2">CMD2</string>
 </resources>

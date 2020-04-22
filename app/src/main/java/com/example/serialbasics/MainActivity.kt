@@ -15,133 +15,130 @@ import com.felhr.usbserial.UsbSerialInterface
 import kotlinx.android.synthetic.main.activity_main.*
 import timber.log.Timber
 import android.net.wifi.WifiManager
+import android.os.Handler
+import com.example.serialbasics.Data.Model.ConnectThread
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.HashMap
-import androidx.core.app.ComponentActivity.ExtraData
-import androidx.core.content.ContextCompat.getSystemService
-import android.icu.lang.UCharacter.GraphemeClusterBreak.T
-import android.R.attr.name
+import kotlin.system.exitProcess
 
 
 
+//class StartMyServiceAtBootReceiver : BroadcastReceiver() {
+//    override fun onReceive(context: Context, intent: Intent) {
+//        if (Intent.ACTION_BOOT_COMPLETED == intent.action) {
+//            println("==== ====   =====  recebeu ACTION_BOOT_COMPLETED ===== ===== ======  ")
+//            val serviceIntent = Intent(context, MainActivity::class.java)
+//            serviceIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+//            context.startService(serviceIntent)
+//        }
+//    }
+//}
 
 
-class MainActivity : AppCompatActivity(), UsbSerialInterface.UsbReadCallback {
 
-    lateinit var m_usbManager: UsbManager
-    var m_device: UsbDevice? = null
-    var m_serial: UsbSerialDevice? = null
-    var m_connection: UsbDeviceConnection? = null
+class MainActivity : AppCompatActivity() {
+
+    private var USB_SERIAL_REQUEST_INTERVAL = 10000L
+    private var USB_SERIAL_TIME_TO_CONNECT_INTERVAL = 3000L
+
+    companion object {
+        private var usbSerialRequestHandler = Handler()
+    }
 
 
-    val ACTION_USB_PERMISSION = "permission"
+
+    lateinit var connectThread: ConnectThread
+
+
+    public fun usbSerialContinueChecking() {
+        var delayToNext: Long = USB_SERIAL_REQUEST_INTERVAL
+
+        if ( ! ArduinoSerialDevice.isConnected ) {
+            delayToNext = USB_SERIAL_TIME_TO_CONNECT_INTERVAL
+        }
+
+            Timber.i("agendando proximo STATUS_REQUEST para:--- ${SimpleDateFormat("HH:mm:ss").format(
+            Calendar.getInstance().time.time.plus(delayToNext))} (${delayToNext})")
+        usbSerialRequestHandler.removeCallbacks(usbSerialRunnable)
+        usbSerialRequestHandler.postDelayed(usbSerialRunnable, delayToNext)
+    }
+
+//    public fun usbSerialTimeToConnectChecking() {
+//        val time: Long = USB_SERIAL_TIME_TO_CONNECT_INTERVAL
+//        Timber.i("agendando [${usbSerialRunnable}] proximo STATUS_REQUEST para:--- ${SimpleDateFormat("HH:mm:ss").format(
+//            Calendar.getInstance().time.time.plus(time))} (${time})")
+//
+//        usbSerialRequestHandler.removeCallbacks(usbSerialRunnable)
+//        usbSerialRequestHandler.postDelayed(usbSerialRunnable, time)
+//    }
+
+    private var usbSerialRunnable = Runnable {
+        if ( ArduinoSerialDevice.isConnected ) {
+            Timber.i("Conectado")
+            btnSendCmd1.isEnabled = true
+            btnSendCmd2.isEnabled = true
+        } else {
+            Timber.i("Não Conectado")
+            btnSendCmd1.isEnabled = false
+            btnSendCmd2.isEnabled = false
+
+            Thread().run {
+                ArduinoSerialDevice.connect()
+            }
+
+
+//            connectThread = ConnectThread(ConnectThread.CONNECT)
+//            connectThread.start()
+
+//            ArduinoSerialDevice.connect()
+        }
+
+        usbSerialContinueChecking()
+    }
+
+    var onConnected = Runnable {
+        Timber.i("Ativando controles para device Conectado")
+        btnSendCmd1.isEnabled = true
+        btnSendCmd2.isEnabled = true
+    }
+
+    var onDisconnected = Runnable {
+        Timber.i("Ativando controles para device Desconectado")
+        btnSendCmd1.isEnabled = false
+        btnSendCmd2.isEnabled = false
+    }
+
+
     val ACTION_WIFI_PERMISSION = "permission"
 
-
-    var pktArrayDeBytes = ByteArray(512)
-    var pktTamanho: Int = 0
-    var pktInd:Int=0;
-
-
-    private val mCallback = UsbSerialInterface.UsbReadCallback {
-        onReceivedData(it)
-    }
-
-    // onde chegam as respostas do arduino
-    override fun onReceivedData(pkt: ByteArray) {
-        var tam:Int = pkt.size
-//        var i:Int=0
-        var ch:Byte
-//        var mandou:Int = 0
-
-        if ( tam == 0) {
-            return
-        }
-
-//        println("Tam = $tam   pktsize=${pkt.size}")
-
-        for ( i in 0 until tam) {
-            ch  =   pkt[i]
-            if ( ch.toInt() == 0 ) break;
-            if ( ch.toChar() == '{') {
-                if ( pktInd  > 0 ) {
-                    Timber.d("Vai desprezar: ${String(pktArrayDeBytes, 0, pktInd)}")
-                }
-                pktInd = 0
-            }
-            if ( ch.toInt() in 32..126 ) {
-                if ( pktInd < (pktArrayDeBytes.size - 1) ) {
-                    pktArrayDeBytes[pktInd++] = ch
-                    pktArrayDeBytes[pktInd] = 0
-                    if ( ch.toChar() == '}') {
-                        onCommandReceived(String(pktArrayDeBytes, 0, pktInd))
-                        pktInd = 0
-                    }
-                } else {
-                    // ignora tudo
-                    pktInd = 0
-                }
-            }
-        }
-    }
-
-
-    public fun onCommandReceived(commandReceived: String) {
-        Timber.d("commandReceived: ${commandReceived}")
-    }
-
-
     override fun onCreate(savedInstanceState: Bundle?) {
+
         super.onCreate(savedInstanceState)
+
         setContentView(R.layout.activity_main)
 
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
 
-//          Timber.e("------ [${SimpleDateFormat("dd/MM/yy-HHmmss", Locale.US).format(Date())}] ------")
+        ArduinoSerialDevice.myContext = applicationContext
+        ArduinoSerialDevice.mainActivity = this
+        ArduinoSerialDevice.usbSetFilters()
 
-        Timber.i("WWW1 Memoria disponível: %d", Runtime.getRuntime().freeMemory())
-        Timber.i("WWW1 Memoria disponível: %d", Runtime.getRuntime().freeMemory())
-        Timber.i("WWW1 Memoria disponível: %d", Runtime.getRuntime().freeMemory())
-        Timber.i("WWW1 Memoria disponível: %d", Runtime.getRuntime().freeMemory())
-        Runtime.getRuntime().gc()
-//        System.gc()
-        Timber.i("WWW1 Memoria disponível: %d", Runtime.getRuntime().freeMemory())
-        Timber.i("WWW1 Memoria disponível: %d", Runtime.getRuntime().freeMemory())
-        Timber.i("WWW1 Memoria disponível: %d", Runtime.getRuntime().freeMemory())
-        Timber.i("WWW1 Memoria disponível: %d", Runtime.getRuntime().freeMemory())
-        Runtime.getRuntime().gc()
-        Timber.i("WWW1 Memoria disponível: %d", Runtime.getRuntime().freeMemory())
-        Timber.i("WWW1 Memoria disponível: %d", Runtime.getRuntime().freeMemory())
-        Timber.i("WWW1 Memoria disponível: %d", Runtime.getRuntime().freeMemory())
-        Timber.i("WWW1 Memoria disponível: %d", Runtime.getRuntime().freeMemory())
+        ArduinoSerialDevice.usbManager =
+            applicationContext.getSystemService(Context.USB_SERVICE) as UsbManager
 
-
-
-        m_usbManager = getSystemService(Context.USB_SERVICE) as UsbManager
-
-        usbSetFilters()
 
         wifiSetFilters()
 
-        on.setOnClickListener { sendData("{\\\"cmd\\\":\\\"fw_status_rq\\\",\\\"action\\\":\\\"question\\\",\\\"timestamp\\\":\\\"1584544328020\\\",\\\"noteiroOnTimestamp\\\":\\\"\\\"}\n") }
-        off.setOnClickListener { sendData("x\r\n") }
-        disconnect.setOnClickListener { disconnect() }
-        connect.setOnClickListener { startUsbConnecting() }
+        btnSendCmd1.setOnClickListener { ArduinoSerialDevice.sendData("{\\\"cmd\\\":\\\"fw_status_rq\\\",\\\"action\\\":\\\"question\\\",\\\"timestamp\\\":\\\"1584544328020\\\",\\\"noteiroOnTimestamp\\\":\\\"\\\"}\n") }
+        btnSendCmd2.setOnClickListener { ArduinoSerialDevice.sendData("x\r\n") }
+
+        usbSerialContinueChecking()
     }
 
 
-    private fun usbSetFilters() {
-        val filter = IntentFilter()
-        filter.addAction(ACTION_USB_PERMISSION)
-        filter.addAction(UsbManager.ACTION_USB_ACCESSORY_ATTACHED)
-        filter.addAction(UsbManager.ACTION_USB_ACCESSORY_DETACHED)
-        filter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
-        filter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
-        registerReceiver(broadcastReceiver, filter)
-    }
 
     private fun wifiSetFilters() {
         val filter = IntentFilter()
@@ -151,94 +148,6 @@ class MainActivity : AppCompatActivity(), UsbSerialInterface.UsbReadCallback {
     }
 
 
-    private fun startUsbConnecting() {
-        val usbDevices : HashMap<String, UsbDevice>? = m_usbManager.deviceList
-        if ( !usbDevices?.isEmpty()!!) {
-            var keep = true
-            usbDevices.forEach { entry ->
-                m_device = entry.value
-                var deviceVendorId: Int = m_device!!.vendorId
-                Timber.i("Device Vendor.Id: %d",  deviceVendorId)
-                if ( deviceVendorId == 9025) {
-
-
-                    val intent: PendingIntent = PendingIntent.getBroadcast(this, 0, Intent(ACTION_USB_PERMISSION), 0)
-                    m_usbManager.requestPermission(m_device, intent)
-
-
-                    keep = false
-                    Timber.i("Connection Successful")
-                } else {
-                    m_connection = null
-                    m_device = null
-                    Timber.i("Unable to connect device. Different VendorId")
-                }
-
-                if ( ! keep ) {
-                    return
-                }
-            }
-        } else {
-            Timber.i("No serial device connected")
-        }
-    }
-
-    private fun sendData(input:String) {
-        m_serial?.write(input.toByteArray())
-        Timber.i("sendData: [%s]", input)
-    }
-
-    private fun disconnect() {
-        m_serial?.close()
-        Timber.i("disconnect")
-    }
-
-    private val broadcastReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-
-            if ( intent != null) {
-                Timber.i("WWW intent.action = ${intent.action.toString()}")
-
-                if (intent.action!! == ACTION_USB_PERMISSION ) {
-                    val granted: Boolean = intent.extras!!.getBoolean(UsbManager.EXTRA_PERMISSION_GRANTED)
-                    if ( granted ) {
-                        m_connection = m_usbManager.openDevice(m_device)
-                        m_serial = UsbSerialDevice.createUsbSerialDevice(m_device, m_connection)
-                        if ( m_serial != null ) {
-                            if ( m_serial!!.open()) {
-                                m_serial!!.setBaudRate(57600)
-
-                                m_serial!!.read( mCallback)
-
-
-//                                m_serial!!.setDataBits(UsbSerialInterface.DATA_BITS_8)
-//                                m_serial!!.setStopBits(UsbSerialInterface.STOP_BITS_1)
-//                                m_serial!!.setParity(UsbSerialInterface.PARITY_NONE)
-//                                m_serial!!.setFlowControl(UsbSerialInterface.FLOW_CONTROL_OFF)
-                            } else {
-                                Timber.e("Serial Port  not open")
-                            }
-                        } else {
-                            Timber.e("Serial Port is null")
-
-                        }
-
-                    } else {
-                        Timber.e("Serial Permission not granted")
-                    }
-                } else if ( intent.action == UsbManager.ACTION_USB_DEVICE_ATTACHED){
-                    startUsbConnecting()
-                } else if ( intent.action == UsbManager.ACTION_USB_DEVICE_DETACHED){
-                    disconnect()
-                }
-
-
-            } else {
-                Timber.e("NULL intent received-----------")
-            }
-
-        }
-    }
 
 
 
@@ -249,7 +158,6 @@ class MainActivity : AppCompatActivity(), UsbSerialInterface.UsbReadCallback {
             } else {
                 Timber.e("NULL intent received-----------")
             }
-
         }
     }
 

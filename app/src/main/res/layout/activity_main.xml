@@ -7,40 +7,24 @@
     tools:context=".MainActivity">
 
     <Button
-        android:id="@+id/on"
+        android:id="@+id/btnSendCmd1"
+        android:enabled="false"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/on"
+        android:text="@string/cmd1"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintTop_toTopOf="parent"/>
 
     <Button
-        android:id="@+id/off"
+        android:id="@+id/btnSendCmd2"
+        android:enabled="false"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/off"
+        android:text="@string/cmd2"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/on"/>
-
-    <Button
-        android:id="@+id/connect"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/connect"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/off"/>
-
-    <Button
-        android:id="@+id/disconnect"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/disconnect"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/connect"/>
+        app:layout_constraintTop_toBottomOf="@id/btnSendCmd1"/>
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
