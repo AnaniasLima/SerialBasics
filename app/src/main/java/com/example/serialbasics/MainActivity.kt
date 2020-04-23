@@ -19,37 +19,32 @@ import android.os.Handler
 import com.example.serialbasics.Data.Model.ConnectThread
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.collections.HashMap
-import kotlin.system.exitProcess
-
-
-
-//class StartMyServiceAtBootReceiver : BroadcastReceiver() {
-//    override fun onReceive(context: Context, intent: Intent) {
-//        if (Intent.ACTION_BOOT_COMPLETED == intent.action) {
-//            println("==== ====   =====  recebeu ACTION_BOOT_COMPLETED ===== ===== ======  ")
-//            val serviceIntent = Intent(context, MainActivity::class.java)
-//            serviceIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-//            context.startService(serviceIntent)
-//        }
-//    }
-//}
 
 
 
 class MainActivity : AppCompatActivity() {
 
-    private var USB_SERIAL_REQUEST_INTERVAL = 10000L
-    private var USB_SERIAL_TIME_TO_CONNECT_INTERVAL = 3000L
 
-    companion object {
-        private var usbSerialRequestHandler = Handler()
-    }
+    private var USB_SERIAL_REQUEST_INTERVAL = 30000L
+    private var USB_SERIAL_TIME_TO_CONNECT_INTERVAL = 10000L
 
-
+    private var usbSerialRequestHandler = Handler()
 
     lateinit var connectThread: ConnectThread
 
+    private var stringGiganteMostraNaTela: String = ""
+    private var linhaMostraNaTela = 0
+
+    private var updateMostraNaTela = Runnable {
+        textView.setText(stringGiganteMostraNaTela)
+    }
+
+
+    fun mostraNaTela(str:String) {
+        stringGiganteMostraNaTela = str + "\n" + stringGiganteMostraNaTela
+        updateMostraNaTela.run()
+//        textView.setText(stringGiganteMostraNaTela)
+    }
 
     public fun usbSerialContinueChecking() {
         var delayToNext: Long = USB_SERIAL_REQUEST_INTERVAL
@@ -58,11 +53,26 @@ class MainActivity : AppCompatActivity() {
             delayToNext = USB_SERIAL_TIME_TO_CONNECT_INTERVAL
         }
 
-            Timber.i("agendando proximo STATUS_REQUEST para:--- ${SimpleDateFormat("HH:mm:ss").format(
+        mostraNaTela("agendando proximo STATUS_REQUEST para:---" + SimpleDateFormat("HH:mm:ss").format(
+            Calendar.getInstance().time.time.plus(delayToNext)) + "(" + delayToNext.toString() + ")")
+
+        Timber.i("agendando proximo STATUS_REQUEST para:--- ${SimpleDateFormat("HH:mm:ss").format(
             Calendar.getInstance().time.time.plus(delayToNext))} (${delayToNext})")
         usbSerialRequestHandler.removeCallbacks(usbSerialRunnable)
         usbSerialRequestHandler.postDelayed(usbSerialRunnable, delayToNext)
     }
+
+    public fun usbSerialImediateChecking(delayToNext: Long) {
+
+        mostraNaTela("agendando proximo STATUS_REQUEST para:---" + SimpleDateFormat("HH:mm:ss").format(
+            Calendar.getInstance().time.time.plus(delayToNext)) + "(" + delayToNext.toString() + ")")
+
+        Timber.i("===== Agendandamento imediato de usbSerialRunnable")
+        usbSerialRequestHandler.removeCallbacks(usbSerialRunnable)
+        usbSerialRequestHandler.postDelayed(usbSerialRunnable, delayToNext)
+    }
+
+
 
 //    public fun usbSerialTimeToConnectChecking() {
 //        val time: Long = USB_SERIAL_TIME_TO_CONNECT_INTERVAL
@@ -75,10 +85,12 @@ class MainActivity : AppCompatActivity() {
 
     private var usbSerialRunnable = Runnable {
         if ( ArduinoSerialDevice.isConnected ) {
+            mostraNaTela("Conectado")
             Timber.i("Conectado")
             btnSendCmd1.isEnabled = true
             btnSendCmd2.isEnabled = true
         } else {
+            mostraNaTela("NAO Conectado")
             Timber.i("Não Conectado")
             btnSendCmd1.isEnabled = false
             btnSendCmd2.isEnabled = false
@@ -122,15 +134,14 @@ class MainActivity : AppCompatActivity() {
             Timber.plant(Timber.DebugTree())
         }
 
+        ArduinoSerialDevice.usbManager =
+            applicationContext.getSystemService(Context.USB_SERVICE) as UsbManager
         ArduinoSerialDevice.myContext = applicationContext
         ArduinoSerialDevice.mainActivity = this
         ArduinoSerialDevice.usbSetFilters()
 
-        ArduinoSerialDevice.usbManager =
-            applicationContext.getSystemService(Context.USB_SERVICE) as UsbManager
 
-
-        wifiSetFilters()
+        mostraNaTela("Linha 1")
 
         btnSendCmd1.setOnClickListener { ArduinoSerialDevice.sendData("{\\\"cmd\\\":\\\"fw_status_rq\\\",\\\"action\\\":\\\"question\\\",\\\"timestamp\\\":\\\"1584544328020\\\",\\\"noteiroOnTimestamp\\\":\\\"\\\"}\n") }
         btnSendCmd2.setOnClickListener { ArduinoSerialDevice.sendData("x\r\n") }

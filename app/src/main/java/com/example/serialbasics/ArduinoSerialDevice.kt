@@ -33,7 +33,7 @@ object ArduinoSerialDevice: UsbSerialInterface.UsbReadCallback {
 
     var myContext: Context? = null
 
-    val ACTION_USB_PERMISSION = "permission"
+    val ACTION_USB_PERMISSION = "com.example.serialbasics.permission"
 
 //        var lastNoteiroTimestamp: String = ""
 
@@ -48,6 +48,9 @@ object ArduinoSerialDevice: UsbSerialInterface.UsbReadCallback {
         onReceivedData(it)
     }
 
+    fun mostraNaTela(str:String) {
+        (mainActivity as MainActivity).mostraNaTela(str)
+    }
 
     // onde chegam as respostas do arduino
     override fun onReceivedData(pkt: ByteArray) {
@@ -92,17 +95,24 @@ object ArduinoSerialDevice: UsbSerialInterface.UsbReadCallback {
 
             if ( intent != null && usbManager != null) {
                 Timber.i("WWW------------------------- intent.action = ${intent.action.toString()}")
-
+                mostraNaTela("WWW------------------------- intent.action = " + intent.action.toString())
                 if (intent.action!! == ACTION_USB_PERMISSION ) {
                     val granted: Boolean = intent.extras!!.getBoolean(UsbManager.EXTRA_PERMISSION_GRANTED)
                     if ( granted ) {
+                        mostraNaTela("ACTION_USB_PERMISSION------------------------- Permmissao concedida")
                         Timber.i("WWW------------------------- Permmissao concedida")
                     } else {
+                        mostraNaTela("ACTION_USB_PERMISSION------------------------- Permmissao NAO concedida")
                         Timber.e("Serial Permission not granted")
                     }
                 } else if ( intent.action == UsbManager.ACTION_USB_DEVICE_ATTACHED){
+                    (mainActivity as MainActivity).mostraNaTela("ACTION_USB_DEVICE_ATTACHED")
                     Timber.i("WWW------------------------- ==> ACTION_USB_DEVICE_ATTACHED")
+                    Thread().run {
+                        connect()
+                    }
                 } else if ( intent.action == UsbManager.ACTION_USB_DEVICE_DETACHED){
+                    (mainActivity as MainActivity).mostraNaTela("ACTION_USB_DEVICE_DETACHED")
                     Timber.i("WWW------------------------- ==> ACTION_USB_DEVICE_DETACHED")
 
                     Thread().run {
@@ -117,6 +127,8 @@ object ArduinoSerialDevice: UsbSerialInterface.UsbReadCallback {
 
 
     fun connect() : Boolean {
+
+        (mainActivity as MainActivity).mostraNaTela("Tentando connect...")
 
         try {
             if ( m_device == null ) {
@@ -135,6 +147,16 @@ object ArduinoSerialDevice: UsbSerialInterface.UsbReadCallback {
                 if ( ! isConnected ) {
                     if ( m_device != null) {
                         if ( m_connection == null) {
+
+
+                            mostraNaTela("hasPermission = " + usbManager!!.hasPermission(m_device).toString())
+
+                            mostraNaTela("deviceClass = " + m_device!!.deviceClass.toString())
+                            mostraNaTela("deviceName = " + m_device!!.deviceName.toString())
+                            mostraNaTela("vendorId = " + m_device!!.vendorId.toString())
+                            mostraNaTela("productId = " + m_device!!.productId.toString())
+
+
                             m_connection = usbManager!!.openDevice(m_device)
                             if (m_connection != null) {
                                 if ( usbSerialDevice == null ) {
@@ -146,22 +168,30 @@ object ArduinoSerialDevice: UsbSerialInterface.UsbReadCallback {
                                             usbSerialDevice!!.setBaudRate(57600)
                                             usbSerialDevice!!.read( mcallback )
                                             isConnected = true
+                                            (mainActivity as MainActivity).usbSerialImediateChecking(100)
+                                            mostraNaTela("Device Conectado")
+
                                         } else {
                                             m_connection = usbManager!!.openDevice(m_device)
                                         }
                                     } else {
+                                        mostraNaTela("can´t create usbSerialDevice. createUsbSerialDevice(m_device, m_connection) Failure.")
                                         Timber.e("can´t create usbSerialDevice. createUsbSerialDevice(m_device, m_connection) Failure.")
                                     }
                                 } else {
+                                    mostraNaTela("usbSerialDevice already in use (not null)")
                                     Timber.e("usbSerialDevice already in use (not null)")
                                 }
                             } else {
+                                mostraNaTela("can´t create m_connection. openDevice(m_device) Failure.")
                                 Timber.e("can´t create m_connection. openDevice(m_device) Failure.")
                             }
                         } else {
+                            mostraNaTela("m_connection already in use (not null)")
                             Timber.e("m_connection already in use (not null)")
                         }
                     } else {
+                        mostraNaTela("m_device already in use (not null)")
                         Timber.e("m_device already in use (not null)")
                     }
                 }
@@ -174,19 +204,38 @@ object ArduinoSerialDevice: UsbSerialInterface.UsbReadCallback {
             isConnected = false
         } finally {
             if ( isConnected ) {
-                (mainActivity as MainActivity).onConnected.run()
+//                (mainActivity as MainActivity).onConnected.run()
             }  else {
-                (mainActivity as MainActivity).onDisconnected.run()
+//                (mainActivity as MainActivity).onDisconnected.run()
                 usbSerialDevice = null
                 m_connection = null
                 m_device = null
             }
 
+            (mainActivity as MainActivity).usbSerialImediateChecking(100)
         }
-
-
         return false
     }
+
+
+    fun disconnect() {
+        mostraNaTela("Vai verificar usbSerialDevice em disconnect...")
+
+        if ( usbSerialDevice != null) {
+            Timber.i("-------- disconnect Inicio")
+            if ( usbSerialDevice!!.isOpen )  {
+                usbSerialDevice!!.close()
+                isConnected = false
+            }
+            usbSerialDevice = null
+            m_connection = null
+            m_device = null
+            Timber.i("-------- disconnect Fim")
+            (mainActivity as MainActivity).usbSerialImediateChecking(100)
+        }
+
+    }
+
 
     private fun selectDevice(vendorRequired:Int) : UsbDevice? {
         var selectedDevice: UsbDevice? = null
@@ -198,37 +247,36 @@ object ArduinoSerialDevice: UsbSerialInterface.UsbReadCallback {
                 deviceList.forEach { entry ->
                     device = entry.value
                     var deviceVendorId: Int = device!!.vendorId
+                    mostraNaTela("Device localizado")
                     Timber.i("Device Vendor.Id: %d",  deviceVendorId)
                     if ( (vendorRequired == 0) || (deviceVendorId == vendorRequired) ) {
-//                        val intent: PendingIntent = PendingIntent.getBroadcast(myContext, 0, Intent(ACTION_USB_PERMISSION), 0)
-//                        usbManager!!.requestPermission(device, intent)
+
+                        if ( ! usbManager!!.hasPermission(device)) {
+                            mostraNaTela("=============== Device Localizado NAO tem permissao")
+                            val intent: PendingIntent = PendingIntent.getBroadcast(myContext, 0, Intent(ACTION_USB_PERMISSION), 0)
+                            usbManager!!.requestPermission(device, intent)
+                        } else {
+                            mostraNaTela("=============== Device Localizado TEM permissao")
+                        }
+
+                        mostraNaTela("Device Selecionado")
                         Timber.i("Device Selected")
                         selectedDevice = device
                         return selectedDevice
                     }
                 }
             } else {
+                mostraNaTela("No serial device connected")
                 Timber.i("No serial device connected")
             }
         } else {
+            mostraNaTela("first we need select usbManager")
             Timber.i("first we need select usbManager")
         }
         return selectedDevice
     }
 
 
-    fun disconnect() {
-        Timber.i("-------- disconnect Inicio")
-        if ( usbSerialDevice!!.isOpen )  {
-            usbSerialDevice!!.close()
-            isConnected = false
-        }
-        usbSerialDevice = null
-        m_connection = null
-        m_device = null
-        Timber.i("-------- disconnect Fim")
-//        (mainActivity as MainActivity).usbSerialContinueChecking()
-    }
 
 
     fun usbSetFilters() {
