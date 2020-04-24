@@ -2,4 +2,6 @@
     <string name="app_name">SerialBasics</string>
     <string name="cmd1">CMD1</string>
     <string name="cmd2">CMD2</string>
+    <string name="clear">CLEAR</string>
+    <string name="tag">TAG</string>
 </resources>

@@ -1,21 +1,17 @@
 package com.example.serialbasics
 
-import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.hardware.usb.UsbDevice
-import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import com.felhr.usbserial.UsbSerialDevice
-import com.felhr.usbserial.UsbSerialInterface
 import kotlinx.android.synthetic.main.activity_main.*
 import timber.log.Timber
 import android.net.wifi.WifiManager
 import android.os.Handler
+import android.util.Log
 import com.example.serialbasics.Data.Model.ConnectThread
 import java.text.SimpleDateFormat
 import java.util.*
@@ -24,26 +20,28 @@ import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
-
     private var USB_SERIAL_REQUEST_INTERVAL = 30000L
     private var USB_SERIAL_TIME_TO_CONNECT_INTERVAL = 10000L
-
     private var usbSerialRequestHandler = Handler()
-
-    lateinit var connectThread: ConnectThread
-
+//    lateinit var connectThread: ConnectThread
     private var stringGiganteMostraNaTela: String = ""
-    private var linhaMostraNaTela = 0
 
+    private var mostraNaTelaHandler = Handler()
     private var updateMostraNaTela = Runnable {
         textView.setText(stringGiganteMostraNaTela)
     }
 
 
     fun mostraNaTela(str:String) {
-        stringGiganteMostraNaTela = str + "\n" + stringGiganteMostraNaTela
-        updateMostraNaTela.run()
-//        textView.setText(stringGiganteMostraNaTela)
+        var strHora = SimpleDateFormat("HH:mm:ss").format(Calendar.getInstance().time)
+        var newString = "$strHora - $str"
+
+        Timber.i(newString)
+
+        stringGiganteMostraNaTela = "  $newString\n$stringGiganteMostraNaTela"
+
+        mostraNaTelaHandler.removeCallbacks(updateMostraNaTela)
+        mostraNaTelaHandler.postDelayed(updateMostraNaTela, 10)
     }
 
     public fun usbSerialContinueChecking() {
@@ -56,18 +54,15 @@ class MainActivity : AppCompatActivity() {
         mostraNaTela("agendando proximo STATUS_REQUEST para:---" + SimpleDateFormat("HH:mm:ss").format(
             Calendar.getInstance().time.time.plus(delayToNext)) + "(" + delayToNext.toString() + ")")
 
-        Timber.i("agendando proximo STATUS_REQUEST para:--- ${SimpleDateFormat("HH:mm:ss").format(
-            Calendar.getInstance().time.time.plus(delayToNext))} (${delayToNext})")
         usbSerialRequestHandler.removeCallbacks(usbSerialRunnable)
         usbSerialRequestHandler.postDelayed(usbSerialRunnable, delayToNext)
     }
 
     public fun usbSerialImediateChecking(delayToNext: Long) {
 
-        mostraNaTela("agendando proximo STATUS_REQUEST para:---" + SimpleDateFormat("HH:mm:ss").format(
+        mostraNaTela("agendando STATUS_REQUEST para:---" + SimpleDateFormat("HH:mm:ss").format(
             Calendar.getInstance().time.time.plus(delayToNext)) + "(" + delayToNext.toString() + ")")
 
-        Timber.i("===== Agendandamento imediato de usbSerialRunnable")
         usbSerialRequestHandler.removeCallbacks(usbSerialRunnable)
         usbSerialRequestHandler.postDelayed(usbSerialRunnable, delayToNext)
     }
@@ -83,29 +78,37 @@ class MainActivity : AppCompatActivity() {
 //        usbSerialRequestHandler.postDelayed(usbSerialRunnable, time)
 //    }
 
+    var ZZC = Runnable {
+        ArduinoSerialDevice.connect()
+    }
+
     private var usbSerialRunnable = Runnable {
+        Timber.i("Entrando em usbSerialRunnable")
         if ( ArduinoSerialDevice.isConnected ) {
-            mostraNaTela("Conectado")
-            Timber.i("Conectado")
+            mostraNaTela("usbSerialRunnable Conectado")
             btnSendCmd1.isEnabled = true
             btnSendCmd2.isEnabled = true
         } else {
-            mostraNaTela("NAO Conectado")
-            Timber.i("Não Conectado")
+            mostraNaTela("usbSerialRunnable NAO Conectado")
             btnSendCmd1.isEnabled = false
             btnSendCmd2.isEnabled = false
 
-            Thread().run {
-                ArduinoSerialDevice.connect()
-            }
+            Timber.i("usbSerialRunnable Vai ativar thread connect")
+//            Thread().run {
+//                ArduinoSerialDevice.connect()
+//            }
 
 
 //            connectThread = ConnectThread(ConnectThread.CONNECT)
 //            connectThread.start()
 
+            ConnectThread(ConnectThread.CONNECT).start()
+
+            Timber.i("usbSerialRunnable Vai ativar thread connect OK")
 //            ArduinoSerialDevice.connect()
         }
 
+        Timber.i("usbSerialRunnable chamando usbSerialContinueChecking")
         usbSerialContinueChecking()
     }
 
@@ -126,6 +129,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
 
+        Log.i("MainActivity","========== __onCreate__   ===========" )
+
+
         super.onCreate(savedInstanceState)
 
         setContentView(R.layout.activity_main)
@@ -134,19 +140,27 @@ class MainActivity : AppCompatActivity() {
             Timber.plant(Timber.DebugTree())
         }
 
+        mostraNaTela("Iniciando MainActivity")
+
         ArduinoSerialDevice.usbManager =
             applicationContext.getSystemService(Context.USB_SERVICE) as UsbManager
         ArduinoSerialDevice.myContext = applicationContext
         ArduinoSerialDevice.mainActivity = this
         ArduinoSerialDevice.usbSetFilters()
 
-
-        mostraNaTela("Linha 1")
-
         btnSendCmd1.setOnClickListener { ArduinoSerialDevice.sendData("{\\\"cmd\\\":\\\"fw_status_rq\\\",\\\"action\\\":\\\"question\\\",\\\"timestamp\\\":\\\"1584544328020\\\",\\\"noteiroOnTimestamp\\\":\\\"\\\"}\n") }
         btnSendCmd2.setOnClickListener { ArduinoSerialDevice.sendData("x\r\n") }
+        btnClear.setOnClickListener {
+            stringGiganteMostraNaTela = ""
+            textView.setText(stringGiganteMostraNaTela)
+        }
+        btntag.setOnClickListener {
+            mostraNaTela("")
+            mostraNaTela("")
+        }
 
-        usbSerialContinueChecking()
+        Timber.i("Vai iniciar processo de pooling para ver o estado do conexao USB-SERIAL")
+        usbSerialImediateChecking(100)
     }
 
 
