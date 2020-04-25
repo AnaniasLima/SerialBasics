@@ -10,16 +10,15 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbManager
 import androidx.appcompat.app.AppCompatActivity
-import com.example.serialbasics.Data.Model.ConnectThread
 import com.example.serialbasics.Data.Model.Event
 import com.felhr.usbserial.UsbSerialDevice
-import com.felhr.usbserial.UsbSerialInterface
+import com.felhr.usbserial.UsbSerialInterface.UsbReadCallback
 import timber.log.Timber
 import java.io.IOException
 
 
 @SuppressLint("StaticFieldLeak")
-object ArduinoSerialDevice: UsbSerialInterface.UsbReadCallback {
+object ArduinoSerialDevice: UsbReadCallback {
 
     var mainActivity: AppCompatActivity? = null
     @Volatile var isConnected: Boolean  = false
@@ -41,7 +40,7 @@ object ArduinoSerialDevice: UsbSerialInterface.UsbReadCallback {
     var EVENT_LIST: MutableList<Event> = mutableListOf()
     var lastNoteiroOnTimestamp: String = ""
     var invalidJsonPacketsReceived:Int = 0
-    var mcallback: UsbSerialInterface.UsbReadCallback? = null
+    var mcallback: UsbReadCallback? = null
 
 //    private val mCallback = UsbSerialInterface.UsbReadCallback {
 //        onReceivedData(it)
@@ -60,11 +59,11 @@ object ArduinoSerialDevice: UsbSerialInterface.UsbReadCallback {
             return
         }
 
-//        println("Tam = $tam   pktsize=${pkt.size}")
+        println("Tam = $tam   pktsize=${pkt.size}")
 
         for ( i in 0 until tam) {
             ch  =   pkt[i]
-            if ( ch.toInt() == 0 ) break;
+            if ( ch.toInt() == 0 ) break
             if ( ch.toChar() == '{') {
                 if ( pktInd  > 0 ) {
                     Timber.d("Vai desprezar: ${String(pktArrayDeBytes, 0, pktInd)}")
@@ -148,7 +147,7 @@ object ArduinoSerialDevice: UsbSerialInterface.UsbReadCallback {
                         if ( m_connection == null) {
                             mostraNaTela("hasPermission = " + usbManager!!.hasPermission(m_device).toString())
                             mostraNaTela("deviceClass = " + m_device!!.deviceClass.toString())
-                            mostraNaTela("deviceName = " + m_device!!.deviceName.toString())
+                            mostraNaTela("deviceName = " + m_device!!.deviceName)
                             mostraNaTela("vendorId = " + m_device!!.vendorId.toString())
                             mostraNaTela("productId = " + m_device!!.productId.toString())
                             m_connection = usbManager!!.openDevice(m_device)
@@ -234,7 +233,7 @@ object ArduinoSerialDevice: UsbSerialInterface.UsbReadCallback {
                 println("Device list size: ${deviceList.size}")
                 deviceList.forEach { entry ->
                     device = entry.value
-                    var deviceVendorId: Int = device!!.vendorId
+                    val deviceVendorId: Int = device!!.vendorId
                     mostraNaTela("Device localizado. Vendor:" + deviceVendorId.toString() + "  productId: " + device!!.productId + "  Name: " + device!!.productName)
                     Timber.i("Device Vendor.Id: %d",  deviceVendorId)
                     if ( (vendorRequired == 0) || (deviceVendorId == vendorRequired) ) {
