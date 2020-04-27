@@ -12,6 +12,7 @@ import android.hardware.usb.UsbManager
 import androidx.appcompat.app.AppCompatActivity
 import com.example.serialbasics.Data.Model.ConnectThread
 import com.example.serialbasics.Data.Model.Event
+import com.example.serialbasics.Data.Model.EventResponse
 import com.example.serialbasics.Data.Model.EventType
 import com.felhr.usbserial.UsbSerialDevice
 import com.felhr.usbserial.UsbSerialInterface.UsbReadCallback
@@ -19,6 +20,8 @@ import timber.log.Timber
 import java.io.IOException
 import java.util.*
 import kotlin.collections.HashMap
+import com.google.gson.Gson
+import kotlinx.android.synthetic.main.activity_main.*
 
 
 @SuppressLint("StaticFieldLeak")
@@ -81,6 +84,32 @@ object ArduinoSerialDevice: UsbReadCallback {
             }
         }
     }
+
+
+    fun onCommandReceived(commandReceived: String) {
+        var gson : Gson
+
+        try {
+            var eventResponse = Gson().fromJson(commandReceived, EventResponse::class.java)
+            EventType.getByCommand(eventResponse.cmd)?.let {
+                eventResponse.eventType = it
+
+                if ( eventResponse.eventType == EventType.FW_NACK ) {
+                    Timber.e("=============== FW_NACK =======================: ${commandReceived}")
+                }
+            }
+        } catch (e: Exception) {
+            invalidJsonPacketsReceived++
+            Timber.e("===============JSON INVALIDO (%d)=======================: ${commandReceived}", invalidJsonPacketsReceived)
+            return
+        }
+
+        if ( (mainActivity as MainActivity).btnEchoSendOff.isEnabled ) {
+            Timber.d("commandReceived: ${commandReceived}")
+        }
+    }
+
+
 
     val broadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -287,26 +316,30 @@ object ArduinoSerialDevice: UsbReadCallback {
     }
 
 
-    fun onCommandReceived(commandReceived: String) {
-        Timber.d("commandReceived: ${commandReceived}")
-    }
 
+    fun sendData(eventType: EventType) : Boolean {
 
-    fun sendData(eventType: EventType) {
-        when(eventType) {
-            EventType.FW_STATUS_RQ -> {
-                connectThread!!.send("StatusRequest", Event(eventType = EventType.FW_STATUS_RQ, action = Event.QUESTION))
+        if ( connectThread?.isRunning() ?: false ) {
+            try {
+                when(eventType) {
+                    EventType.FW_STATUS_RQ -> {
+                        val event = Event(eventType = EventType.FW_STATUS_RQ, action = Event.QUESTION)
+                        connectThread!!.EVENT_LIST.add(event)
+                    }
+
+                    EventType.FW_NOTEIRO -> {
+                        val event = Event(eventType = EventType.FW_NOTEIRO, action = Event.QUESTION)
+                        lastNoteiroTimestamp = event.timeStamp
+                        connectThread!!.EVENT_LIST.add(event)
+                    }
+
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-
-            EventType.FW_NOTEIRO -> {
-                val event = Event(eventType = EventType.FW_NOTEIRO, action = Event.QUESTION)
-                lastNoteiroTimestamp = event.timeStamp
-                connectThread!!.send("NoteiroRequest", event)
-            }
-
         }
 
-
+        return false
     }
 
 

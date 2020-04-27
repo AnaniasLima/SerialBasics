@@ -4,4 +4,6 @@
     <string name="cmd2">CMD2</string>
     <string name="clear">CLEAR</string>
     <string name="tag">TAG</string>
+    <string name="sendOn">SendOn</string>
+    <string name="sendOff">SendOff</string>
 </resources>

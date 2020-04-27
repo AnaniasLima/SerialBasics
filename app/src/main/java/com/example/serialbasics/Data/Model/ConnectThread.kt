@@ -1,10 +1,16 @@
 package com.example.serialbasics.Data.Model
 
 import com.example.serialbasics.ArduinoSerialDevice
+import com.example.serialbasics.MainActivity
+import kotlinx.android.synthetic.main.activity_main.*
 import timber.log.Timber
 import java.util.*
 
 class ConnectThread (val operation:Int) : Thread() {
+
+
+    var EVENT_LIST: MutableList<Event> = mutableListOf()
+
 
     var finishThread: Boolean = true
     private var isRunning = false
@@ -13,6 +19,7 @@ class ConnectThread (val operation:Int) : Thread() {
         var CONNECT = 1
         var DISCONNECT = 0
         val WAITTIME : Long = 100L
+        val MICROWAITTIME : Long = 20L
     }
 
     fun finish() {
@@ -23,7 +30,7 @@ class ConnectThread (val operation:Int) : Thread() {
         return isRunning
     }
 
-    fun send( request: String, curEvent: Event) {
+    fun send( curEvent: Event) {
 
         if (curEvent.eventType == EventType.FW_NOTEIRO && curEvent.action == Event.ON) {
             ArduinoSerialDevice.lastNoteiroOnTimestamp = Date().time.toString()
@@ -32,10 +39,17 @@ class ConnectThread (val operation:Int) : Thread() {
 
         try {
             val pktStr: String = Event.getCommandData(curEvent)
-            Timber.d("$request!: $pktStr")
+
+            if ( (ArduinoSerialDevice.mainActivity as MainActivity).btnEchoSendOff.isEnabled ) {
+                Timber.d("SEND ==> $pktStr")
+            } else {
+                Timber.d("SEND ==> %s - %d (errosRX:%d)", curEvent.eventType.command, Event.pktNumber, ArduinoSerialDevice.invalidJsonPacketsReceived)
+            }
+
+
             ArduinoSerialDevice.usbSerialDevice?.write(pktStr.toByteArray())
         } catch (e: Exception) {
-            Timber.d("$request!: Ocorreu uma Exception ")
+            Timber.d("Ocorreu uma Exception ")
         }
     }
 
@@ -45,7 +59,14 @@ class ConnectThread (val operation:Int) : Thread() {
             if ( ArduinoSerialDevice.connectInBackground() ) {
                 finishThread = false
                 while ( ! finishThread ) {
-                    sleep(WAITTIME)
+                    if ( EVENT_LIST.isEmpty() ) {
+                        sleep(WAITTIME)
+                    }  else {
+                        val event = EVENT_LIST[0]
+                        send(event)
+                        sleep(MICROWAITTIME)
+                        EVENT_LIST.removeAt(0)
+                    }
                 }
                 ArduinoSerialDevice.disconnectInBackground()
             }

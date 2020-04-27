@@ -92,6 +92,21 @@ class MainActivity : AppCompatActivity() {
         usbSerialContinueChecking()
     }
 
+    private var loopDeStatusRequest = Runnable {
+        for (i in 1.. 10000) {
+            ArduinoSerialDevice.sendData(EventType.FW_STATUS_RQ)
+            Thread.sleep(30)
+        }
+    }
+
+    private var loopNoteiroRequest = Runnable {
+        for (i in 1.. 1000) {
+            ArduinoSerialDevice.sendData(EventType.FW_NOTEIRO)
+            Thread.sleep(300)
+        }
+    }
+
+
 //    var onConnected = Runnable {
 //        Timber.i("Ativando controles para device Conectado")
 //        btnSendCmd1.isEnabled = true
@@ -128,16 +143,48 @@ class MainActivity : AppCompatActivity() {
         ArduinoSerialDevice.mainActivity = this
         ArduinoSerialDevice.usbSetFilters()
 
-        btnSendCmd1.setOnClickListener { ArduinoSerialDevice.sendData(EventType.FW_STATUS_RQ) }
-        btnSendCmd2.setOnClickListener { ArduinoSerialDevice.sendData(EventType.FW_NOTEIRO) }
+
+        btnSendCmd1.setOnClickListener {
+            Timber.e("------------Antes-----------")
+            Thread {
+                loopDeStatusRequest.run()
+            }.start()
+            Timber.e("----------depois-----------")
+
+            //ArduinoSerialDevice.sendData(EventType.FW_STATUS_RQ)
+        }
+
+
+        btnSendCmd2.setOnClickListener {
+            Timber.e("------------Antes-----------")
+            Thread {
+                loopNoteiroRequest.run()
+            }.start()
+            Timber.e("----------depois-----------")
+        }
+
+
+
         btnClear.setOnClickListener {
             stringGiganteMostraNaTela = ""
             textView.setText(stringGiganteMostraNaTela)
         }
+
         btntag.setOnClickListener {
             mostraNaTela("")
             mostraNaTela("")
         }
+
+        btnEchoSendOff.setOnClickListener {
+            btnEchoSendOff.isEnabled = false
+            btnEchoSendOn.isEnabled = true
+        }
+
+        btnEchoSendOn.setOnClickListener {
+            btnEchoSendOff.isEnabled = true
+            btnEchoSendOn.isEnabled = false
+        }
+
 
         Timber.i("Vai iniciar processo de pooling para ver o estado do conexao USB-SERIAL")
         usbSerialImediateChecking(100)
