@@ -8,7 +8,7 @@ import java.util.*
 data class Event(
     var eventType: EventType = EventType.FW_STATUS_RQ,
     var timeStamp: String = Date().time.toString(),
-    var noteiroOnTimestamp: String = ArduinoSerialDevice.lastNoteiroOnTimestamp,
+    var noteiroOnTimestamp: String = "", // ArduinoSerialDevice.lastNoteiroOnTimestamp,
     var action: String = QUESTION) {
 
 
@@ -55,7 +55,7 @@ data class Event(
                     }
                 }
                 EventType.FW_NOTEIRO -> {
-                    if ( event.action == Event.ON ) {
+                    if ( event.action == ON ) {
                         ArduinoSerialDevice.lastNoteiroOnTimestamp = Date().time.toString()
                         event.noteiroOnTimestamp = ArduinoSerialDevice.lastNoteiroOnTimestamp
                     }
@@ -77,7 +77,7 @@ data class Event(
             }
 
             commandData.put("packetNumber", pktNumber)
-            commandData.put("invPKT------", ArduinoSerialDevice.invalidJsonPacketsReceived)
+            commandData.put("invPKT------", ConnectThread.invalidJsonPacketsReceived)
             commandData.put("timestamp", event.timeStamp)
             commandData.put("noteiroOnTimestamp", event.noteiroOnTimestamp)
             commandData.put("hour", SimpleDateFormat( "HH:mm:SS", Locale.getDefault()).format(Date()))

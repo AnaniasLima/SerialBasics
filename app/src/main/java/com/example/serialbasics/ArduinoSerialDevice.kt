@@ -1,27 +1,17 @@
 package com.example.serialbasics
 
 import android.annotation.SuppressLint
-import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.hardware.usb.UsbDevice
-import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbManager
 import androidx.appcompat.app.AppCompatActivity
 import com.example.serialbasics.Data.Model.ConnectThread
 import com.example.serialbasics.Data.Model.Event
 import com.example.serialbasics.Data.Model.EventResponse
 import com.example.serialbasics.Data.Model.EventType
-import com.felhr.usbserial.UsbSerialDevice
-import com.felhr.usbserial.UsbSerialInterface.UsbReadCallback
 import timber.log.Timber
-import java.io.IOException
-import java.util.*
-import kotlin.collections.HashMap
-import com.google.gson.Gson
-import kotlinx.android.synthetic.main.activity_main.*
 
 enum class FunctionType {
     FX_RX,
@@ -30,89 +20,33 @@ enum class FunctionType {
 
 
 @SuppressLint("StaticFieldLeak")
-object ArduinoSerialDevice: UsbReadCallback {
+object ArduinoSerialDevice {
 
     var mainActivity: AppCompatActivity? = null
-    var isConnected: Boolean  = false
-    var pktArrayDeBytes = ByteArray(512)
-    var pktInd:Int=0
     var usbManager  : UsbManager? = null
     var myContext: Context? = null
     val ACTION_USB_PERMISSION = "com.example.serialbasics.permission"
 
-    var lastNoteiroTimestamp: String = ""
-
-    var usbSerialDevice: UsbSerialDevice? = null
-    var EVENT_LIST: MutableList<Event> = mutableListOf()
+//    var lastNoteiroTimestamp: String = ""
     var lastNoteiroOnTimestamp: String = ""
-    var invalidJsonPacketsReceived:Int = 0
 
-    var connectThread: ConnectThread? = null
+    var EVENT_LIST: MutableList<Event> = mutableListOf()
+
+    private var connectThread: ConnectThread? = null
 
     private var rxLogLevel = 0
     private var txLogLevel = 0
 
 
-    fun mostraNaTela(str:String) {
+    private fun mostraNaTela(str:String) {
         (mainActivity as MainActivity).mostraNaTela(str)
     }
 
-    // onde chegam as respostas do arduino
-    override fun onReceivedData(pkt: ByteArray) {
-        val tam:Int = pkt.size
-        var ch:Byte
-
-        if ( tam == 0) {
-            return
-        }
-
-//        Timber.i("pktsize=${pkt.size} ")
-
-        for ( i in 0 until tam) {
-            ch  =   pkt[i]
-//            Timber.i("  [$i] - %c", ch)
-            if ( ch.toInt() == 0 ) break
-            if ( ch.toChar() == '{') {
-                if ( pktInd  > 0 ) {
-                    Timber.d("Vai desprezar: ${String(pktArrayDeBytes, 0, pktInd)}")
-                }
-                pktInd = 0
-            }
-            if ( ch.toInt() in 32..126 ) {
-                if ( pktInd < (pktArrayDeBytes.size - 1) ) {
-                    pktArrayDeBytes[pktInd++] = ch
-                    pktArrayDeBytes[pktInd] = 0
-                    if ( ch.toChar() == '}') {
-                        onCommandReceived(String(pktArrayDeBytes, 0, pktInd))
-                        pktInd = 0
-                    }
-                } else {
-                    // ignora tudo
-                    pktInd = 0
-                }
-            }
-        }
-    }
 
 
-    fun onCommandReceived(commandReceived: String) {
-        try {
-            val eventResponse = Gson().fromJson(commandReceived, EventResponse::class.java)
-            EventType.getByCommand(eventResponse.cmd)?.let {
-                eventResponse.eventType = it
-
-                if ( eventResponse.eventType == EventType.FW_NACK ) {
-                    Timber.e("=============== FW_NACK =======================: ${commandReceived}")
-                }
-            }
-        } catch (e: Exception) {
-            invalidJsonPacketsReceived++
-            Timber.e("===============JSON INVALIDO (%d)=======================: ${commandReceived}", invalidJsonPacketsReceived)
-            return
-        }
-
-        if ( getLogLevel(FunctionType.FX_RX) > 0  ) {
-            Timber.d("commandReceived: ${commandReceived}")
+    fun onEventResponse(eventResponse: EventResponse) {
+        if ( eventResponse.eventType == EventType.FW_PLAY ) {
+            Timber.e("=============== FW_PLAY =======================: ${eventResponse.toString()}")
         }
     }
 
@@ -145,38 +79,18 @@ object ArduinoSerialDevice: UsbReadCallback {
     fun connect() {
         mostraNaTela("Verificando conexão...")
 
-        // se a thread não estiver mais rodando, libera a thread
-        if (connectThread != null) {
-            if (!connectThread!!.isRunning()) {
-                Timber.i("connectThread != NULL mas não esta mais rodando. Fazendo connectThread=NULL")
+        if ( ConnectThread.isConnected ) {
+            if ( connectThread == null) {
+                throw IllegalStateException("Erro interno 001")
             }
+            mostraNaTela("Já estava connectado.")
+            return
         }
-
-        if (usbManager != null) {
-            isConnected = usbSerialDevice?.isOpen ?: false
-            if (isConnected) {
-                mostraNaTela("Já estava connectado.")
-                if (connectThread != null) {
-                    if (connectThread!!.isRunning()) {
-                        return
-                    } else {
-                        Timber.e("Estava conectadado mas connectThread não estava mais isRunning.")
-                        connectThread = null
-                    }
-                } else {
-                    Timber.e("Estava conectadado mas connectThread esta NULL.")
-                    mostraNaTela("Thread estava inativa.")
-                }
-            }
-        }
-
-        isConnected = false
-        usbSerialDevice = null
 
         if ( usbManager != null ) {
             if ( usbManager!!.deviceList.size > 0  ) {
                 mostraNaTela("Tentando connect...")
-                connectThread = ConnectThread(ConnectThread.CONNECT)
+                connectThread = ConnectThread(ConnectThread.CONNECT, usbManager!!, mainActivity!!, myContext!!)
                 if (connectThread != null ) {
                     Timber.i("Startando thread para tratar da conexao")
                     connectThread!!.start()
@@ -187,71 +101,6 @@ object ArduinoSerialDevice: UsbReadCallback {
         }
     }
 
-
-    fun connectInBackground() : Boolean {
-
-        if ( usbManager != null ) {
-            isConnected = usbSerialDevice?.isOpen ?: false
-            if ( isConnected ) {
-               return true
-            }
-        }
-
-        try {
-            val m_device    : UsbDevice? = selectDevice(0)
-
-            if ( m_device != null ) {
-                val m_connection: UsbDeviceConnection? = usbManager!!.openDevice(m_device)
-                mostraNaTela("hasPermission = " + usbManager!!.hasPermission(m_device).toString())
-                mostraNaTela("deviceClass = " + m_device.deviceClass.toString())
-                mostraNaTela("deviceName = " + m_device.deviceName)
-                mostraNaTela("vendorId = " + m_device.vendorId.toString())
-                mostraNaTela("productId = " + m_device.productId.toString())
-                if (m_connection != null) {
-                    Timber.i("Creating usbSerialDevice")
-                    usbSerialDevice = UsbSerialDevice.createUsbSerialDevice(m_device, m_connection)
-                    if ( usbSerialDevice != null ) {
-                        Timber.i("Opening usbSerialDevice")
-                        if ( usbSerialDevice!!.open()) {
-                            usbSerialDevice!!.setBaudRate(57600)
-                            usbSerialDevice!!.read( this )
-                        }
-                    } else {
-                        mostraNaTela("can´t create usbSerialDevice. createUsbSerialDevice(m_device, m_connection) Failure.")
-                        Timber.e("can´t create usbSerialDevice. createUsbSerialDevice(m_device, m_connection) Failure.")
-                    }
-                } else {
-                    mostraNaTela("can´t create m_connection. openDevice(m_device) Failure.")
-                    Timber.e("can´t create m_connection. openDevice(m_device) Failure.")
-                }
-            }
-        } catch ( e: IOException ) {
-            usbSerialDevice = null
-        }
-
-        isConnected = usbSerialDevice?.isOpen ?: false
-
-        if ( isConnected ) {
-            mostraNaTela("CONECTADO COM SUCESSO")
-            (mainActivity as MainActivity).usbSerialImediateChecking(100)
-        }
-
-        return isConnected
-    }
-
-
-    fun disconnectInBackground() {
-        if ( usbSerialDevice != null) {
-            Timber.i("-------- disconnectInBackground Inicio")
-            if ( usbSerialDevice!!.isOpen )  {
-                usbSerialDevice!!.close()
-                isConnected = false
-            }
-            usbSerialDevice = null
-            Timber.i("-------- disconnectInBackground Fim")
-            (mainActivity as MainActivity).usbSerialImediateChecking(100)
-        }
-    }
 
 
     fun disconnect() {
@@ -265,49 +114,11 @@ object ArduinoSerialDevice: UsbReadCallback {
             connectThread = null
         } else {
             Timber.i("Disparando thread para desconectar")
-            ConnectThread(ConnectThread.DISCONNECT).start()
+            ConnectThread(ConnectThread.DISCONNECT, usbManager!!, mainActivity!!, myContext!!).start()
         }
 
     }
 
-
-    private fun selectDevice(vendorRequired:Int) : UsbDevice? {
-        var selectedDevice: UsbDevice? = null
-        if ( usbManager != null ) {
-            val deviceList : HashMap<String, UsbDevice>? = usbManager!!.deviceList
-            if ( !deviceList?.isEmpty()!!) {
-                var device: UsbDevice?
-                println("Device list size: ${deviceList.size}")
-                deviceList.forEach { entry ->
-                    device = entry.value
-                    val deviceVendorId: Int = device!!.vendorId
-                    mostraNaTela("Device localizado. Vendor:" + deviceVendorId.toString() + "  productId: " + device!!.productId + "  Name: " + device!!.productName)
-                    Timber.i("Device Vendor.Id: %d",  deviceVendorId)
-                    if ( (vendorRequired == 0) || (deviceVendorId == vendorRequired) ) {
-
-                        if ( ! usbManager!!.hasPermission(device)) {
-                            mostraNaTela("=============== Device Localizado NAO tem permissao")
-                            val intent: PendingIntent = PendingIntent.getBroadcast(myContext, 0, Intent(ACTION_USB_PERMISSION), PendingIntent.FLAG_UPDATE_CURRENT)
-                            usbManager!!.requestPermission(device, intent)
-                        } else {
-                            mostraNaTela("=============== Device Localizado TEM permissao")
-                            mostraNaTela("Device Selecionado")
-                            Timber.i("Device Selected")
-                            selectedDevice = device
-                            return selectedDevice
-                        }
-                    }
-                }
-            } else {
-                mostraNaTela("No serial device connected")
-                Timber.i("No serial device connected")
-            }
-        } else {
-            mostraNaTela("first we need select usbManager")
-            Timber.i("first we need select usbManager")
-        }
-        return selectedDevice
-    }
 
 
 
@@ -325,7 +136,7 @@ object ArduinoSerialDevice: UsbReadCallback {
 
     fun sendData(eventType: EventType) : Boolean {
 
-        if ( connectThread?.isRunning() ?: false ) {
+        if ( ConnectThread.isConnected ) {
             try {
                 when(eventType) {
                     EventType.FW_STATUS_RQ -> {

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.hardware.usb.UsbManager
+import android.icu.text.DateFormat.getDateTimeInstance
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import kotlinx.android.synthetic.main.activity_main.*
@@ -12,7 +13,9 @@ import timber.log.Timber
 import android.net.wifi.WifiManager
 import android.os.Handler
 import android.util.Log
+import com.example.serialbasics.Data.Model.ConnectThread
 import com.example.serialbasics.Data.Model.EventType
+import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -31,8 +34,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun mostraNaTela(str:String) {
-        val strHora = SimpleDateFormat("HH:mm:ss").format(Calendar.getInstance().time)
-        val newString = "$strHora - $str"
+        val strHora1 = SimpleDateFormat("HH:mm:ss").format(Calendar.getInstance().time)
+        val newString = "$strHora1 - $str"
 
         Timber.i(newString)
 
@@ -45,7 +48,7 @@ class MainActivity : AppCompatActivity() {
     fun usbSerialContinueChecking() {
         var delayToNext: Long = USB_SERIAL_REQUEST_INTERVAL
 
-        if ( ! ArduinoSerialDevice.isConnected ) {
+        if ( ! ConnectThread.isConnected ) {
             delayToNext = USB_SERIAL_TIME_TO_CONNECT_INTERVAL
             mostraNaTela("agendando proximo STATUS_REQUEST para:---" + SimpleDateFormat("HH:mm:ss").format(
                 Calendar.getInstance().time.time.plus(delayToNext)) + "(" + delayToNext.toString() + ")")
@@ -77,7 +80,7 @@ class MainActivity : AppCompatActivity() {
 //    }
 
     private var usbSerialRunnable = Runnable {
-        if ( ArduinoSerialDevice.isConnected ) {
+        if ( ConnectThread.isConnected ) {
 //            mostraNaTela("usbSerialRunnable Conectado")
             btnStatusRequest.isEnabled = true
             btnStatusNoteiro.isEnabled = true
@@ -125,7 +128,6 @@ class MainActivity : AppCompatActivity() {
 
         Log.i("MainActivity","========== __onCreate__   ===========" )
 
-
         super.onCreate(savedInstanceState)
 
         setContentView(R.layout.activity_main)
@@ -170,20 +172,20 @@ class MainActivity : AppCompatActivity() {
 
         btnEchoSend.setOnClickListener {
             if ( ArduinoSerialDevice.getLogLevel(FunctionType.FX_TX) == 0) {
-                btnEchoSend.text = "Send\nOff"
+                btnEchoSend.text = getString(R.string.sendOff)
                 ArduinoSerialDevice.setLogLevel(FunctionType.FX_TX, 1)
             }  else {
-                btnEchoSend.text = "Send\nOn"
+                btnEchoSend.text = getString(R.string.sendOn)
                 ArduinoSerialDevice.setLogLevel(FunctionType.FX_TX, 0)
             }
         }
 
         btnEchoReceive.setOnClickListener {
             if ( ArduinoSerialDevice.getLogLevel(FunctionType.FX_RX) == 0) {
-                btnEchoReceive.text = "Receive\nOff"
+                btnEchoReceive.text = getString(R.string.receiveOff)
                 ArduinoSerialDevice.setLogLevel(FunctionType.FX_RX, 1)
             }  else {
-                btnEchoReceive.text = "Receive\nOn"
+                btnEchoReceive.text = getString(R.string.receiveOn)
                 ArduinoSerialDevice.setLogLevel(FunctionType.FX_RX, 0)
             }
         }
