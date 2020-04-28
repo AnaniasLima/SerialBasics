@@ -1,9 +1,11 @@
 <resources>
     <string name="app_name">SerialBasics</string>
-    <string name="cmd1">CMD1</string>
-    <string name="cmd2">CMD2</string>
+    <string name="statusRequest">Status Request</string>
+    <string name="statusNoteiro">Status Noteiro</string>
     <string name="clear">CLEAR</string>
     <string name="tag">TAG</string>
-    <string name="sendOn">SendOn</string>
-    <string name="sendOff">SendOff</string>
+    <string name="sendOn">Send\nOn</string>
+    <string name="sendOff">Send\nOff</string>
+    <string name="receiveOn">Receive\nOn</string>
+    <string name="receiveOff">Receive\nOff</string>
 </resources>

@@ -12,7 +12,6 @@ import timber.log.Timber
 import android.net.wifi.WifiManager
 import android.os.Handler
 import android.util.Log
-import com.example.serialbasics.Data.Model.ConnectThread
 import com.example.serialbasics.Data.Model.EventType
 import java.text.SimpleDateFormat
 import java.util.*
@@ -80,12 +79,12 @@ class MainActivity : AppCompatActivity() {
     private var usbSerialRunnable = Runnable {
         if ( ArduinoSerialDevice.isConnected ) {
 //            mostraNaTela("usbSerialRunnable Conectado")
-            btnSendCmd1.isEnabled = true
-            btnSendCmd2.isEnabled = true
+            btnStatusRequest.isEnabled = true
+            btnStatusNoteiro.isEnabled = true
         } else {
             mostraNaTela("usbSerialRunnable NAO Conectado")
-            btnSendCmd1.isEnabled = false
-            btnSendCmd2.isEnabled = false
+            btnStatusRequest.isEnabled = false
+            btnStatusNoteiro.isEnabled = false
             ArduinoSerialDevice.connect()
         }
 
@@ -93,14 +92,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private var loopDeStatusRequest = Runnable {
-        for (i in 1.. 10000) {
+        for (i in 1.. 10) {
             ArduinoSerialDevice.sendData(EventType.FW_STATUS_RQ)
             Thread.sleep(30)
         }
     }
 
     private var loopNoteiroRequest = Runnable {
-        for (i in 1.. 1000) {
+        for (i in 1.. 3) {
             ArduinoSerialDevice.sendData(EventType.FW_NOTEIRO)
             Thread.sleep(300)
         }
@@ -144,23 +143,17 @@ class MainActivity : AppCompatActivity() {
         ArduinoSerialDevice.usbSetFilters()
 
 
-        btnSendCmd1.setOnClickListener {
-            Timber.e("------------Antes-----------")
+        btnStatusRequest.setOnClickListener {
             Thread {
                 loopDeStatusRequest.run()
             }.start()
-            Timber.e("----------depois-----------")
-
-            //ArduinoSerialDevice.sendData(EventType.FW_STATUS_RQ)
         }
 
 
-        btnSendCmd2.setOnClickListener {
-            Timber.e("------------Antes-----------")
+        btnStatusNoteiro.setOnClickListener {
             Thread {
                 loopNoteiroRequest.run()
             }.start()
-            Timber.e("----------depois-----------")
         }
 
 
@@ -175,16 +168,25 @@ class MainActivity : AppCompatActivity() {
             mostraNaTela("")
         }
 
-        btnEchoSendOff.setOnClickListener {
-            btnEchoSendOff.isEnabled = false
-            btnEchoSendOn.isEnabled = true
+        btnEchoSend.setOnClickListener {
+            if ( ArduinoSerialDevice.getLogLevel(FunctionType.FX_TX) == 0) {
+                btnEchoSend.text = "Send\nOff"
+                ArduinoSerialDevice.setLogLevel(FunctionType.FX_TX, 1)
+            }  else {
+                btnEchoSend.text = "Send\nOn"
+                ArduinoSerialDevice.setLogLevel(FunctionType.FX_TX, 0)
+            }
         }
 
-        btnEchoSendOn.setOnClickListener {
-            btnEchoSendOff.isEnabled = true
-            btnEchoSendOn.isEnabled = false
+        btnEchoReceive.setOnClickListener {
+            if ( ArduinoSerialDevice.getLogLevel(FunctionType.FX_RX) == 0) {
+                btnEchoReceive.text = "Receive\nOff"
+                ArduinoSerialDevice.setLogLevel(FunctionType.FX_RX, 1)
+            }  else {
+                btnEchoReceive.text = "Receive\nOn"
+                ArduinoSerialDevice.setLogLevel(FunctionType.FX_RX, 0)
+            }
         }
-
 
         Timber.i("Vai iniciar processo de pooling para ver o estado do conexao USB-SERIAL")
         usbSerialImediateChecking(100)
@@ -198,8 +200,6 @@ class MainActivity : AppCompatActivity() {
         filter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION)
         registerReceiver(broadcastReceiverWifi, filter)
     }
-
-
 
 
 

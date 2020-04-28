@@ -44,6 +44,28 @@ data class Event(
             }
 
             commandData.put("cmd", event.eventType.command)
+
+
+            when ( event.eventType ) {
+                EventType.FW_PINPAD -> {
+                    if (event.action == ON) {
+                        commandData.put("state", 1)
+                    } else {
+                        commandData.put("state", 0)
+                    }
+                }
+                EventType.FW_NOTEIRO -> {
+                    if ( event.action == Event.ON ) {
+                        ArduinoSerialDevice.lastNoteiroOnTimestamp = Date().time.toString()
+                        event.noteiroOnTimestamp = ArduinoSerialDevice.lastNoteiroOnTimestamp
+                    }
+                }
+                else -> {
+                    // do nothing
+                }
+            }
+
+
             if (event.eventType == EventType.FW_PINPAD) { // Mateus porque FW_PINPAD ?
                 if (event.action == ON) {
                     commandData.put("state", 1)

@@ -23,6 +23,11 @@ import kotlin.collections.HashMap
 import com.google.gson.Gson
 import kotlinx.android.synthetic.main.activity_main.*
 
+enum class FunctionType {
+    FX_RX,
+    FX_TX
+}
+
 
 @SuppressLint("StaticFieldLeak")
 object ArduinoSerialDevice: UsbReadCallback {
@@ -43,6 +48,10 @@ object ArduinoSerialDevice: UsbReadCallback {
     var invalidJsonPacketsReceived:Int = 0
 
     var connectThread: ConnectThread? = null
+
+    private var rxLogLevel = 0
+    private var txLogLevel = 0
+
 
     fun mostraNaTela(str:String) {
         (mainActivity as MainActivity).mostraNaTela(str)
@@ -87,10 +96,8 @@ object ArduinoSerialDevice: UsbReadCallback {
 
 
     fun onCommandReceived(commandReceived: String) {
-        var gson : Gson
-
         try {
-            var eventResponse = Gson().fromJson(commandReceived, EventResponse::class.java)
+            val eventResponse = Gson().fromJson(commandReceived, EventResponse::class.java)
             EventType.getByCommand(eventResponse.cmd)?.let {
                 eventResponse.eventType = it
 
@@ -104,7 +111,7 @@ object ArduinoSerialDevice: UsbReadCallback {
             return
         }
 
-        if ( (mainActivity as MainActivity).btnEchoSendOff.isEnabled ) {
+        if ( getLogLevel(FunctionType.FX_RX) > 0  ) {
             Timber.d("commandReceived: ${commandReceived}")
         }
     }
@@ -316,23 +323,21 @@ object ArduinoSerialDevice: UsbReadCallback {
     }
 
 
-
     fun sendData(eventType: EventType) : Boolean {
 
         if ( connectThread?.isRunning() ?: false ) {
             try {
                 when(eventType) {
                     EventType.FW_STATUS_RQ -> {
-                        val event = Event(eventType = EventType.FW_STATUS_RQ, action = Event.QUESTION)
-                        connectThread!!.EVENT_LIST.add(event)
+                        connectThread!!.requestToSend(eventType = EventType.FW_STATUS_RQ, action = Event.QUESTION)
                     }
 
                     EventType.FW_NOTEIRO -> {
-                        val event = Event(eventType = EventType.FW_NOTEIRO, action = Event.QUESTION)
-                        lastNoteiroTimestamp = event.timeStamp
-                        connectThread!!.EVENT_LIST.add(event)
+                        connectThread!!.requestToSend(eventType = EventType.FW_NOTEIRO, action = Event.QUESTION)
                     }
-
+                    else -> {
+                        // do nothing
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -342,6 +347,26 @@ object ArduinoSerialDevice: UsbReadCallback {
         return false
     }
 
+    fun setLogLevel(function : FunctionType, value: Int) {
+        when ( function) {
+            FunctionType.FX_RX -> {
+                rxLogLevel = value
+            }
+            FunctionType.FX_TX -> {
+                txLogLevel = value
+            }
+        }
+    }
 
+    fun getLogLevel(function : FunctionType) : Int {
+        when ( function) {
+            FunctionType.FX_RX -> {
+                return(rxLogLevel)
+            }
+            FunctionType.FX_TX -> {
+                return(txLogLevel)
+            }
+        }
+    }
 
 }
