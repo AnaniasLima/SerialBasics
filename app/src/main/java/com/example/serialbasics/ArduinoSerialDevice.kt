@@ -134,17 +134,17 @@ object ArduinoSerialDevice {
     }
 
 
-    fun sendData(eventType: EventType) : Boolean {
+    fun requestToSend(eventType: EventType, action: String) : Boolean {
 
         if ( ConnectThread.isConnected ) {
             try {
                 when(eventType) {
                     EventType.FW_STATUS_RQ -> {
-                        connectThread!!.requestToSend(eventType = EventType.FW_STATUS_RQ, action = Event.QUESTION)
+                        connectThread!!.requestToSend(eventType = EventType.FW_STATUS_RQ, action=action)
                     }
 
                     EventType.FW_NOTEIRO -> {
-                        connectThread!!.requestToSend(eventType = EventType.FW_NOTEIRO, action = Event.QUESTION)
+                        connectThread!!.requestToSend(eventType = EventType.FW_NOTEIRO, action=action)
                     }
                     else -> {
                         // do nothing

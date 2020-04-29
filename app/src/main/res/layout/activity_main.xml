@@ -22,8 +22,54 @@
         android:layout_height="wrap_content"
         android:enabled="true"
         android:text="@string/receiveOn"
-        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintLeft_toLeftOf="@id/btnEchoSend"
         app:layout_constraintTop_toBottomOf="@id/btnEchoSend" />
+
+
+
+
+
+    <Button
+        android:id="@+id/btnNoteiroOn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:enabled="true"
+        android:text="@string/noteiroOn"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintLeft_toRightOf="@+id/btnEchoSend"
+        android:layout_marginStart="20dp"/>
+
+    <Button
+        android:id="@+id/btnNoteiroOff"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:enabled="true"
+        android:text="@string/noteiroOff"
+        app:layout_constraintLeft_toLeftOf="@+id/btnNoteiroOn"
+        app:layout_constraintTop_toBottomOf="@id/btnNoteiroOn"/>
+
+
+
+    <Button
+        android:id="@+id/btnNoteiroReset"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:enabled="true"
+        android:text="@string/noteiroReset"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintLeft_toRightOf="@+id/btnNoteiroOn"
+        android:layout_marginStart="20dp"/>
+
+    <Button
+        android:id="@+id/btnNoteiroQuestion"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:enabled="true"
+        android:text="@string/noteiroQuestion"
+        app:layout_constraintLeft_toLeftOf="@+id/btnNoteiroReset"
+        app:layout_constraintTop_toBottomOf="@id/btnNoteiroReset"/>
+
+
 
     <Button
         android:id="@+id/btnStatusRequest"

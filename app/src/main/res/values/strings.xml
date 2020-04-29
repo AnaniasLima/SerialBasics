@@ -8,4 +8,10 @@
     <string name="sendOff">Send\nOff</string>
     <string name="receiveOn">Receive\nOn</string>
     <string name="receiveOff">Receive\nOff</string>
+
+    <string name="noteiroOn">Noteiro\nOn</string>
+    <string name="noteiroOff">Noteiro\nOff</string>
+    <string name="noteiroReset">Noteiro\nReset</string>
+    <string name="noteiroQuestion">Noteiro\nQuestion</string>
+
 </resources>

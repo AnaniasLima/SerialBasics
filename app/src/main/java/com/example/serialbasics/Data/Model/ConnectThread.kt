@@ -32,7 +32,6 @@ class ConnectThread (val operation:Int, val usbManager : UsbManager, val mainAct
         val WAITTIME : Long = 100L
         val MICROWAITTIME : Long = 20L
         var isConnected: Boolean  = false
-        var invalidJsonPacketsReceived:Int = 0
     }
 
     private fun mostraNaTela(str:String) {
@@ -94,13 +93,13 @@ class ConnectThread (val operation:Int, val usbManager : UsbManager, val mainAct
                 }
             }
         } catch (e: Exception) {
-            invalidJsonPacketsReceived++
-            Timber.e("===============JSON INVALIDO (%d)=======================: ${commandReceived}", invalidJsonPacketsReceived)
+            EventResponse.invalidJsonPacketsReceived++
+            Timber.e("===============JSON INVALIDO (%d)=======================: ${commandReceived}", EventResponse.invalidJsonPacketsReceived)
             return
         }
 
         if ( ArduinoSerialDevice.getLogLevel(FunctionType.FX_RX) > 0  ) {
-            Timber.d("commandReceived: ${commandReceived}")
+            mostraNaTela("RX: ${commandReceived}")
         }
     }
 
@@ -140,7 +139,7 @@ class ConnectThread (val operation:Int, val usbManager : UsbManager, val mainAct
      */
     fun requestToSend(eventType: EventType, action: String) : Boolean {
         if ( isConnected && (!finishThread )) {
-            val event = Event(eventType, action)
+            val event = Event(eventType = eventType, action = action)
             EVENT_LIST.add(event)
             return true
         }
@@ -152,9 +151,9 @@ class ConnectThread (val operation:Int, val usbManager : UsbManager, val mainAct
             val pktStr: String = Event.getCommandData(curEvent)
 
             if ( ArduinoSerialDevice.getLogLevel(FunctionType.FX_TX) == 1 ) {
-                Timber.d("SEND ==> $pktStr")
+                mostraNaTela("TX: $pktStr")
             } else {
-                Timber.i("SEND ==> %s - %d (errosRX:%d)", curEvent.eventType.command, Event.pktNumber, invalidJsonPacketsReceived)
+                Timber.d("SEND ==> %s - %d (errosRX:%d)", curEvent.eventType.command, Event.pktNumber, EventResponse.invalidJsonPacketsReceived)
             }
 
             usbSerialDevice?.write(pktStr.toByteArray())

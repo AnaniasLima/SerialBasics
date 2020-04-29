@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.hardware.usb.UsbManager
-import android.icu.text.DateFormat.getDateTimeInstance
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import kotlinx.android.synthetic.main.activity_main.*
@@ -14,8 +13,8 @@ import android.net.wifi.WifiManager
 import android.os.Handler
 import android.util.Log
 import com.example.serialbasics.Data.Model.ConnectThread
+import com.example.serialbasics.Data.Model.Event
 import com.example.serialbasics.Data.Model.EventType
-import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -96,18 +95,34 @@ class MainActivity : AppCompatActivity() {
 
     private var loopDeStatusRequest = Runnable {
         for (i in 1.. 10) {
-            ArduinoSerialDevice.sendData(EventType.FW_STATUS_RQ)
+            ArduinoSerialDevice.requestToSend(EventType.FW_STATUS_RQ, Event.QUESTION)
             Thread.sleep(30)
         }
     }
 
     private var loopNoteiroRequest = Runnable {
         for (i in 1.. 3) {
-            ArduinoSerialDevice.sendData(EventType.FW_NOTEIRO)
+            ArduinoSerialDevice.requestToSend(EventType.FW_NOTEIRO, Event.QUESTION)
             Thread.sleep(300)
         }
     }
 
+
+    private var sendCmdNoteiroOn = Runnable {
+        ArduinoSerialDevice.requestToSend(EventType.FW_NOTEIRO, Event.ON)
+    }
+
+    private var sendCmdNoteiroOff = Runnable {
+        ArduinoSerialDevice.requestToSend(EventType.FW_NOTEIRO, Event.OFF)
+    }
+
+    private var sendCmdNoteiroReset = Runnable {
+        ArduinoSerialDevice.requestToSend(EventType.FW_NOTEIRO, Event.RESET)
+    }
+
+    private var sendCmdNoteiroQuestion = Runnable {
+        ArduinoSerialDevice.requestToSend(EventType.FW_NOTEIRO, Event.QUESTION)
+    }
 
 //    var onConnected = Runnable {
 //        Timber.i("Ativando controles para device Conectado")
@@ -143,6 +158,35 @@ class MainActivity : AppCompatActivity() {
         ArduinoSerialDevice.myContext = applicationContext
         ArduinoSerialDevice.mainActivity = this
         ArduinoSerialDevice.usbSetFilters()
+
+
+
+        btnNoteiroOn.setOnClickListener {
+            Thread {
+                sendCmdNoteiroOn.run()
+            }.start()
+        }
+
+
+        btnNoteiroOff.setOnClickListener {
+            Thread {
+                sendCmdNoteiroOff.run()
+            }.start()
+        }
+
+        btnNoteiroReset.setOnClickListener {
+            Thread {
+                sendCmdNoteiroReset.run()
+            }.start()
+        }
+
+
+        btnNoteiroQuestion.setOnClickListener {
+            Thread {
+                sendCmdNoteiroQuestion.run()
+            }.start()
+        }
+
 
 
         btnStatusRequest.setOnClickListener {

@@ -7,10 +7,8 @@ import java.util.*
 
 data class Event(
     var eventType: EventType = EventType.FW_STATUS_RQ,
-    var timeStamp: String = Date().time.toString(),
-    var noteiroOnTimestamp: String = "", // ArduinoSerialDevice.lastNoteiroOnTimestamp,
-    var action: String = QUESTION) {
-
+    var action: String = QUESTION,
+    var requestToSendtimeStamp: String = Date().time.toString()) {
 
     companion object {
         val ON = "on"
@@ -27,6 +25,8 @@ data class Event(
         var tabletResetPktNumber: Int = 0
         var ledPktNumber: Int = 0
         var nackPktNumber: Int = 0
+        var noteiroOnTimestamp:String = ""
+
 
 
         fun getCommandData(event: Event): String {
@@ -57,7 +57,7 @@ data class Event(
                 EventType.FW_NOTEIRO -> {
                     if ( event.action == ON ) {
                         ArduinoSerialDevice.lastNoteiroOnTimestamp = Date().time.toString()
-                        event.noteiroOnTimestamp = ArduinoSerialDevice.lastNoteiroOnTimestamp
+                        noteiroOnTimestamp = ArduinoSerialDevice.lastNoteiroOnTimestamp
                     }
                 }
                 else -> {
@@ -77,9 +77,8 @@ data class Event(
             }
 
             commandData.put("packetNumber", pktNumber)
-            commandData.put("invPKT------", ConnectThread.invalidJsonPacketsReceived)
-            commandData.put("timestamp", event.timeStamp)
-            commandData.put("noteiroOnTimestamp", event.noteiroOnTimestamp)
+            commandData.put("timestamp", event.requestToSendtimeStamp)
+            commandData.put("noteiroOnTimestamp", noteiroOnTimestamp)
             commandData.put("hour", SimpleDateFormat( "HH:mm:SS", Locale.getDefault()).format(Date()))
 
             return commandData.toString()
@@ -118,6 +117,7 @@ data class EventResponse(
         val BUSY = "busy"
         val NOK = "nok"
         val OK = "ok"
+        var invalidJsonPacketsReceived = 0
     }
 }
 
